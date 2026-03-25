@@ -20,6 +20,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // requires code-signed binary + Secure Enclave access
     fn generate_sign_load_verify() {
         cleanup();
 

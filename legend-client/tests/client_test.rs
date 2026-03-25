@@ -149,8 +149,8 @@ async fn api_error_404() {
     Mock::given(method("GET"))
         .and(path("/accounts/acc_nonexistent"))
         .respond_with(ResponseTemplate::new(404).set_body_json(json!({
-            "error": "account_not_found",
-            "message": "Account not found"
+            "code": "account_not_found",
+            "detail": "Account not found"
         })))
         .mount(&server)
         .await;
@@ -179,8 +179,8 @@ async fn api_error_400() {
     Mock::given(method("POST"))
         .and(path("/accounts"))
         .respond_with(ResponseTemplate::new(400).set_body_json(json!({
-            "error": "invalid_params",
-            "message": "Invalid signer_type"
+            "code": "invalid_params",
+            "detail": "Invalid signer_type"
         })))
         .mount(&server)
         .await;

@@ -20,7 +20,7 @@ use crate::config::{self, Env};
 
 const PROTOCOL_VERSION: &str = "2025-06-18";
 const SERVER_NAME: &str = "legend-cli";
-const SERVER_VERSION: &str = "0.1.0";
+const SERVER_VERSION: &str = "0.0.1";
 
 /// uint256 max — used as the sentinel for "withdraw/earn all available".
 const UINT256_MAX: &str = "115792089237316195423570985008687907853269984665640564039457584007913129639935";
