@@ -1,3 +1,4 @@
+#![cfg(feature = "integration")]
 //! Integration tests for the Rust Prime API client.
 //!
 //! These tests run against a real Legend server + Turnkey API, orchestrated by

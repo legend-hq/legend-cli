@@ -9,7 +9,7 @@ pub mod turnkey;
 // keychain-access-groups entitlement for persistent keys (DataProtectionKeychain).
 // TODO: Re-enable once we have a provisioning profile set up.
 #[allow(dead_code)]
-mod secure_enclave;
+pub mod secure_enclave;
 
 pub use error::{Result, SignerError};
 pub use file_signer::FileSigner;
@@ -18,3 +18,6 @@ pub use turnkey::{TurnkeyClient, TurnkeyConfig};
 
 #[cfg(target_os = "macos")]
 pub use keychain::KeychainSigner;
+
+#[cfg(target_os = "macos")]
+pub use secure_enclave::SecureEnclaveSigner;
