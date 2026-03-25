@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+members = [
+    "legend-client",
+    "legend-signer",
+    "legend-cli",
+]
