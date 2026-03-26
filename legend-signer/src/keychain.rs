@@ -1,13 +1,14 @@
-//! macOS Keychain signer — stores P256 keys in the iCloud-synced keychain.
+//! macOS Keychain signer — stores P256 keys in the iCloud-synced Data Protection keychain.
 //!
-//! Keys are standard P256 (not Secure Enclave), stored with kSecAttrSynchronizable=true
+//! Keys are standard P256 (not Secure Enclave), created with kSecAttrSynchronizable=true
 //! so they sync across all iCloud-connected Apple devices. Signing uses
 //! SecKeyCreateSignature (ECDSA-SHA256).
 //!
-//! No special entitlements or provisioning profiles required.
-//!
-//! Future: add Secure Enclave support for hardware-bound keys (requires provisioning
-//! profile with keychain-access-groups entitlement for DataProtectionKeychain persistence).
+//! Requirements: the binary must be distributed as an .app bundle containing a
+//! provisioning profile (embedded.provisionprofile) that grants keychain-access-groups.
+//! The bundle must be code-signed with a Developer ID Application certificate,
+//! hardened runtime, and entitlements (com.apple.application-identifier +
+//! keychain-access-groups + com.apple.developer.team-identifier).
 
 #![cfg(target_os = "macos")]
 
@@ -72,10 +73,6 @@ impl Signer for KeychainSigner {
 /// kSecAttrIsPermanent and kSecAttrSynchronizable.
 fn generate_persistent_key(label: &str) -> Result<SecKey> {
     unsafe {
-        // Private key attributes — persist in the login keychain.
-        // TODO: Add kSecAttrSynchronizable=true for iCloud sync once we have
-        // the provisioning profile / keychain-access-groups entitlement sorted.
-        // That one attribute flip enables sync to all iCloud-connected devices.
         let mut private_attrs = CFMutableDictionary::new();
         private_attrs.set(
             CFString::wrap_under_get_rule(kSecAttrIsPermanent).as_CFTypeRef(),
@@ -84,6 +81,10 @@ fn generate_persistent_key(label: &str) -> Result<SecKey> {
         private_attrs.set(
             CFString::wrap_under_get_rule(kSecAttrLabel).as_CFTypeRef(),
             CFString::new(label).as_CFTypeRef(),
+        );
+        private_attrs.set(
+            CFString::wrap_under_get_rule(kSecAttrSynchronizable).as_CFTypeRef(),
+            CFBoolean::true_value().as_CFTypeRef(),
         );
 
         // Top-level key generation attributes
@@ -132,11 +133,10 @@ fn find_key_by_label(label: &str) -> Result<SecKey> {
             CFString::wrap_under_get_rule(kSecReturnRef).as_CFTypeRef(),
             CFBoolean::true_value().as_CFTypeRef(),
         );
-        // TODO: Add kSecAttrSynchronizableAny when sync is enabled
-        // query.set(
-        //     CFString::wrap_under_get_rule(kSecAttrSynchronizable).as_CFTypeRef(),
-        //     CFString::wrap_under_get_rule(kSecAttrSynchronizableAny).as_CFTypeRef(),
-        // );
+        query.set(
+            CFString::wrap_under_get_rule(kSecAttrSynchronizable).as_CFTypeRef(),
+            CFString::wrap_under_get_rule(kSecAttrSynchronizableAny).as_CFTypeRef(),
+        );
 
         let mut result = std::ptr::null();
         let status = SecItemCopyMatching(query.as_concrete_TypeRef(), &mut result);

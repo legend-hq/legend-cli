@@ -4,11 +4,9 @@ pub mod keychain;
 pub mod signer;
 pub mod turnkey;
 
-// Secure Enclave signer exists but is not currently exported.
-// It works for ephemeral keys but requires a provisioning profile with
-// keychain-access-groups entitlement for persistent keys (DataProtectionKeychain).
-// TODO: Re-enable once we have a provisioning profile set up.
-#[allow(dead_code)]
+// Secure Enclave signer — generates non-exportable P256 keys in hardware.
+// Same .app bundle + provisioning profile + code-signing setup as the Keychain
+// signer. SE keys are device-local (cannot sync via iCloud).
 pub mod secure_enclave;
 
 pub use error::{Result, SignerError};

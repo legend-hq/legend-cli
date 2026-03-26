@@ -3,6 +3,7 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -43,13 +44,101 @@ jobs:
       - name: Build
         run: cargo build --release --target ${{ matrix.target }} -p legend-cli
 
-      - name: Package (unix)
-        if: matrix.os != 'windows-latest'
+      # --- macOS: assemble .app bundle, code sign, notarize ---
+      - name: Import signing certificate
+        if: runner.os == 'macOS'
+        env:
+          CERTIFICATE_P12: ${{ secrets.DEVELOPER_ID_CERT_P12_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
+          echo "$CERTIFICATE_P12" | base64 --decode > certificate.p12
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security set-keychain-settings -t 21600 -u build.keychain
+
+          security import certificate.p12 \
+            -k build.keychain \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "$KEYCHAIN_PASSWORD" build.keychain
+
+          security list-keychains -d user -s build.keychain login.keychain
+
+          rm -f certificate.p12
+
+      - name: Assemble .app bundle
+        if: runner.os == 'macOS'
+        run: |
+          APP=target/${{ matrix.target }}/release/legend-cli.app
+          rm -rf "$APP"
+          mkdir -p "$APP/Contents/MacOS"
+          cp bundle/Info.plist "$APP/Contents/"
+          cp bundle/embedded.provisionprofile "$APP/Contents/"
+          cp target/${{ matrix.target }}/release/legend-cli "$APP/Contents/MacOS/"
+
+      - name: Code sign bundle
+        if: runner.os == 'macOS'
+        run: |
+          APP=target/${{ matrix.target }}/release/legend-cli.app
+
+          IDENTITY=$(security find-identity -v -p codesigning build.keychain \
+            | grep "Developer ID Application" \
+            | head -1 \
+            | sed 's/.*"\(.*\)".*/\1/')
+
+          echo "Signing with: $IDENTITY"
+          codesign --sign "$IDENTITY" \
+            --options runtime \
+            --entitlements entitlements.plist \
+            --force \
+            --timestamp \
+            "$APP"
+
+          codesign --verify --deep --strict --verbose=2 "$APP"
+
+      - name: Notarize bundle
+        if: runner.os == 'macOS'
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+        run: |
+          APP=target/${{ matrix.target }}/release/legend-cli.app
+
+          ditto -c -k --keepParent "$APP" legend-cli-notarize.zip
+
+          xcrun notarytool submit legend-cli-notarize.zip \
+            --apple-id "$APPLE_ID" \
+            --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --wait
+
+          xcrun stapler staple "$APP"
+          rm -f legend-cli-notarize.zip
+
+      - name: Cleanup keychain
+        if: runner.os == 'macOS' && always()
+        run: security delete-keychain build.keychain || true
+      # --- end macOS code signing ---
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../${{ matrix.artifact }}.tar.gz legend-cli.app
+      - name: Package (linux)
+        if: runner.os == 'Linux'
         run: |
           cd target/${{ matrix.target }}/release
           tar czf ../../../${{ matrix.artifact }}.tar.gz legend-cli
       - name: Package (windows)
-        if: matrix.os == 'windows-latest'
+        if: runner.os == 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
           7z a ../../../${{ matrix.artifact }}.zip legend-cli.exe
@@ -60,6 +149,7 @@ jobs:
           path: legend-cli-*
 
   publish-crates:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: test
     runs-on: macos-latest
     steps:
@@ -72,6 +162,7 @@ jobs:
       - run: cargo publish -p legend-cli --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
   release:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     steps:
