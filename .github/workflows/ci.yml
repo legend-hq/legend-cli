@@ -23,4 +23,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo publish --dry-run -p legend-client
       - run: cargo publish --dry-run -p legend-signer
-      - run: cargo publish --dry-run -p legend-cli
+      # legend-cli skipped: depends on legend-client + legend-signer at the
+      # current version which won't be on crates.io until the release job runs.
+
