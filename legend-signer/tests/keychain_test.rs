@@ -17,6 +17,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // requires code-signed .app bundle with provisioning profile
     fn generate_sign_load_verify() {
         cleanup();
 
