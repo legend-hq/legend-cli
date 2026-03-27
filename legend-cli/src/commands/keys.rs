@@ -28,6 +28,9 @@ pub fn list(env: Env) -> anyhow::Result<()> {
         for (label, pubkey) in &keys {
             let name = label.strip_prefix(&prefix).unwrap_or(label);
             println!("{name}\tkeychain\t{pubkey}");
+            if let Ok(attrs) = legend_signer::keychain::key_attributes(label) {
+                eprintln!("  attrs: {attrs}");
+            }
             count += 1;
         }
     }
