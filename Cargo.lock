@@ -947,13 +947,14 @@ checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 
 [[package]]
 name = "legend-cli"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "base64",
  "clap",
  "comfy-table",
  "dirs",
+ "hex",
  "legend-client",
  "legend-signer",
  "open",
@@ -971,7 +972,7 @@ dependencies = [
 
 [[package]]
 name = "legend-client"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "reqwest",
  "serde",
@@ -983,7 +984,7 @@ dependencies = [
 
 [[package]]
 name = "legend-signer"
-version = "0.0.2"
+version = "0.0.3"
 dependencies = [
  "base64",
  "core-foundation",

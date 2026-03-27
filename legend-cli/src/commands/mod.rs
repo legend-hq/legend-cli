@@ -1,4 +1,5 @@
 pub mod accounts;
+pub mod keys;
 pub mod login;
 pub mod mcp;
 pub mod plan;
