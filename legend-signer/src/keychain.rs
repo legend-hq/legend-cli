@@ -86,6 +86,10 @@ fn generate_persistent_key(label: &str) -> Result<SecKey> {
             CFString::wrap_under_get_rule(kSecAttrSynchronizable).as_CFTypeRef(),
             CFBoolean::true_value().as_CFTypeRef(),
         );
+        private_attrs.set(
+            CFString::wrap_under_get_rule(kSecAttrAccessGroup).as_CFTypeRef(),
+            CFString::new("747VCSDJ25.xyz.legend.cli").as_CFTypeRef(),
+        );
 
         // Top-level key generation attributes
         let mut attrs = CFMutableDictionary::new();
@@ -239,6 +243,45 @@ pub fn list_keys(label_prefix: &str) -> Result<Vec<(String, String)>> {
         }
 
         Ok(keys)
+    }
+}
+
+/// Dump keychain attributes for a key by label. For diagnostics.
+/// Returns the CFDictionary description as a string (includes agrp, sync, pdmn, etc).
+pub fn key_attributes(label: &str) -> Result<String> {
+    unsafe {
+        let mut query = CFMutableDictionary::new();
+        query.set(
+            CFString::wrap_under_get_rule(kSecClass).as_CFTypeRef(),
+            CFString::wrap_under_get_rule(kSecClassKey).as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecAttrLabel).as_CFTypeRef(),
+            CFString::new(label).as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecAttrSynchronizable).as_CFTypeRef(),
+            CFString::wrap_under_get_rule(kSecAttrSynchronizableAny).as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecReturnAttributes).as_CFTypeRef(),
+            CFBoolean::true_value().as_CFTypeRef(),
+        );
+
+        let mut result = std::ptr::null();
+        let status = SecItemCopyMatching(query.as_concrete_TypeRef(), &mut result);
+
+        if status != 0 || result.is_null() {
+            return Err(SignerError::Keychain(format!(
+                "Key not found for label '{label}' (status: {status})"
+            )));
+        }
+
+        // Use CFCopyDescription to get a full dump of all attributes
+        let desc_ref = core_foundation::base::CFCopyDescription(result);
+        let desc = CFString::wrap_under_create_rule(desc_ref);
+        core_foundation::base::CFRelease(result);
+        Ok(desc.to_string())
     }
 }
 
