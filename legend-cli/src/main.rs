@@ -11,7 +11,7 @@ use crate::config::Env;
 use crate::output::*;
 
 #[derive(Parser)]
-#[command(name = "legend-cli", about = "Legend Prime API client & signing tool")]
+#[command(name = "legend-cli", about = "Legend API client & signing tool", version)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
