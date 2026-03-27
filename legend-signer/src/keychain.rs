@@ -175,6 +175,73 @@ fn extract_compressed_public_key(private_key: &SecKey) -> Result<String> {
     Ok(format!("0x{}", hex::encode(&compressed)))
 }
 
+/// List all legend-cli keys in the keychain matching a label prefix.
+/// Returns a vec of (label, compressed_public_key_hex) pairs.
+pub fn list_keys(label_prefix: &str) -> Result<Vec<(String, String)>> {
+    unsafe {
+        let mut query = CFMutableDictionary::new();
+        query.set(
+            CFString::wrap_under_get_rule(kSecClass).as_CFTypeRef(),
+            CFString::wrap_under_get_rule(kSecClassKey).as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecAttrKeyType).as_CFTypeRef(),
+            CFString::wrap_under_get_rule(kSecAttrKeyTypeECSECPrimeRandom).as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecAttrSynchronizable).as_CFTypeRef(),
+            CFString::wrap_under_get_rule(kSecAttrSynchronizableAny).as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecReturnRef).as_CFTypeRef(),
+            CFBoolean::true_value().as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecReturnAttributes).as_CFTypeRef(),
+            CFBoolean::true_value().as_CFTypeRef(),
+        );
+        query.set(
+            CFString::wrap_under_get_rule(kSecMatchLimit).as_CFTypeRef(),
+            CFString::wrap_under_get_rule(kSecMatchLimitAll).as_CFTypeRef(),
+        );
+
+        let mut result = std::ptr::null();
+        let status = SecItemCopyMatching(query.as_concrete_TypeRef(), &mut result);
+
+        if status == -25300 {
+            // errSecItemNotFound — no keys at all
+            return Ok(vec![]);
+        }
+        if status != 0 || result.is_null() {
+            return Err(SignerError::Keychain(format!(
+                "Failed to list keys (status: {status})"
+            )));
+        }
+
+        let array = core_foundation::array::CFArray::<core_foundation::dictionary::CFDictionary>::wrap_under_create_rule(result as _);
+        let mut keys = Vec::new();
+
+        for i in 0..array.len() {
+            let dict = array.get(i).unwrap();
+            let label_key = CFString::wrap_under_get_rule(kSecAttrLabel);
+            if let Some(label_val) = dict.find(label_key.as_CFTypeRef()) {
+                let label = CFString::wrap_under_get_rule(*label_val as _).to_string();
+                if label.starts_with(label_prefix) {
+                    let key_ref_key = CFString::new("v_Ref");
+                    if let Some(key_ref) = dict.find(key_ref_key.as_CFTypeRef()) {
+                        let sec_key = SecKey::wrap_under_get_rule(*key_ref as _);
+                        if let Ok(pubkey_hex) = extract_compressed_public_key(&sec_key) {
+                            keys.push((label, pubkey_hex));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(keys)
+    }
+}
+
 /// Delete a keychain key by label. Used for test cleanup.
 pub fn delete_key(label: &str) -> Result<()> {
     unsafe {

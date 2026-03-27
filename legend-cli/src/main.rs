@@ -92,6 +92,11 @@ enum Commands {
         #[arg(long)]
         use_file_key: bool,
     },
+    /// Manage local Keychain keys
+    Keys {
+        #[command(subcommand)]
+        action: KeysAction,
+    },
     /// Log in via Google SSO (OAuth 2.1 + PKCE)
     Login,
     /// Run as an MCP server (stdio transport)
@@ -278,6 +283,29 @@ enum PlanAction {
         /// Provide a pre-computed signature
         #[arg(long)]
         signature: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum KeysAction {
+    /// Create a new Keychain key
+    Create {
+        /// Key name
+        name: String,
+    },
+    /// List all Keychain keys for the current environment
+    List,
+    /// Sign a hex digest with a Keychain key (local, no Turnkey)
+    Sign {
+        /// Key name
+        name: String,
+        /// Hex-encoded digest to sign
+        digest: String,
+    },
+    /// Delete a Keychain key
+    Delete {
+        /// Key name
+        name: String,
     },
 }
 
@@ -614,6 +642,13 @@ async fn main() {
         Commands::Keygen { name, use_file_key } => {
             run_keygen(name.as_deref(), *use_file_key, env, &cli.profile)
         }
+
+        Commands::Keys { action } => match action {
+            KeysAction::Create { name } => commands::keys::create(name, env),
+            KeysAction::List => commands::keys::list(env),
+            KeysAction::Sign { name, digest } => commands::keys::sign(name, digest, env),
+            KeysAction::Delete { name } => commands::keys::delete(name, env),
+        },
 
         Commands::Networks => {
             async {
