@@ -1,4 +1,5 @@
-//! iCloud Keychain signer e2e tests. macOS only.
+#![cfg(feature = "keychain")]
+//! iCloud Keychain signer e2e tests. macOS only, requires keychain feature.
 //!
 //! These tests generate real P256 keys in the iCloud-synced keychain,
 //! sign data, verify, reload by label, and clean up.

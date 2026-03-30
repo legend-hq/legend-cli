@@ -288,24 +288,36 @@ enum PlanAction {
 
 #[derive(Subcommand)]
 enum KeysAction {
-    /// Create a new Keychain key
+    /// Create a new key
     Create {
         /// Key name
         name: String,
+        /// Use file-based key instead of the default
+        #[arg(long, conflicts_with = "keychain")]
+        file: bool,
+        /// Use iCloud Keychain (requires brew install)
+        #[arg(long, conflicts_with = "file")]
+        keychain: bool,
     },
-    /// List all Keychain keys for the current environment
+    /// List all keys for the current environment
     List,
-    /// Sign a hex digest with a Keychain key (local, no Turnkey)
+    /// Sign a hex digest with a local key (no Turnkey)
     Sign {
         /// Key name
         name: String,
         /// Hex-encoded digest to sign
         digest: String,
     },
-    /// Delete a Keychain key
+    /// Delete a key
     Delete {
         /// Key name
         name: String,
+        /// Delete a file-based key instead of the default
+        #[arg(long, conflicts_with = "keychain")]
+        file: bool,
+        /// Delete an iCloud Keychain key (requires brew install)
+        #[arg(long, conflicts_with = "file")]
+        keychain: bool,
     },
 }
 
@@ -644,10 +656,18 @@ async fn main() {
         }
 
         Commands::Keys { action } => match action {
-            KeysAction::Create { name } => commands::keys::create(name, env),
-            KeysAction::List => commands::keys::list(env),
+            KeysAction::Create {
+                name,
+                file,
+                keychain,
+            } => commands::keys::create(name, env, *file, *keychain),
+            KeysAction::List => commands::keys::list(env, cli.verbose),
             KeysAction::Sign { name, digest } => commands::keys::sign(name, digest, env),
-            KeysAction::Delete { name } => commands::keys::delete(name, env),
+            KeysAction::Delete {
+                name,
+                file,
+                keychain,
+            } => commands::keys::delete(name, env, *file, *keychain),
         },
 
         Commands::Networks => {
@@ -725,16 +745,19 @@ fn run_keygen(
         eprintln!("Key saved to {}", path.display());
         println!("{}", signer.public_key_hex());
     } else {
-        #[cfg(target_os = "macos")]
+        #[cfg(feature = "keychain")]
         {
             let label = format!("com.legend.cli.{env}.{effective_name}");
             let signer = legend_signer::KeychainSigner::generate(&label)?;
             eprintln!("Key saved to iCloud Keychain (label: {label})");
             println!("{}", signer.public_key_hex());
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(feature = "keychain"))]
         {
-            anyhow::bail!("macOS Keychain not available on this platform. Use --use-file-key.");
+            anyhow::bail!(
+                "iCloud Keychain is not available in this build. Use --use-file-key,\n\
+                 or install via `brew install legend-cli` for iCloud Keychain support."
+            );
         }
     }
     Ok(())

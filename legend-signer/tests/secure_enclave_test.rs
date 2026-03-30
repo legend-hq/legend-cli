@@ -1,4 +1,5 @@
-//! Secure Enclave e2e tests. macOS only.
+#![cfg(feature = "keychain")]
+//! Secure Enclave e2e tests. macOS only, requires keychain feature.
 //!
 //! These tests generate real keys in the Secure Enclave, sign data, and verify.
 //! The test binary must be code-signed for SE access:

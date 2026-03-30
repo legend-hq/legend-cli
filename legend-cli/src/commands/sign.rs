@@ -25,7 +25,7 @@ pub async fn sign(digest: &str, env: Env, profile_name: &str, verbose: bool) -> 
 pub fn load_signer_from_profile(profile: &Profile) -> anyhow::Result<Box<dyn Signer>> {
     match profile.key_source.as_str() {
         "keychain" => {
-            #[cfg(target_os = "macos")]
+            #[cfg(feature = "keychain")]
             {
                 let label = profile
                     .key_label
@@ -33,9 +33,12 @@ pub fn load_signer_from_profile(profile: &Profile) -> anyhow::Result<Box<dyn Sig
                     .ok_or_else(|| anyhow::anyhow!("Profile missing key_label for Keychain"))?;
                 Ok(Box::new(KeychainSigner::load(label)?))
             }
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(not(feature = "keychain"))]
             {
-                anyhow::bail!("macOS Keychain not available on this platform")
+                anyhow::bail!(
+                    "iCloud Keychain is not available in this build.\n\
+                     Install via `brew install legend-cli` for iCloud Keychain support."
+                )
             }
         }
         // Legacy: support old profiles that used secure_enclave

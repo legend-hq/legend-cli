@@ -952,15 +952,18 @@ fn generate_key(
             Some(path.to_string_lossy().to_string()),
         ))
     } else {
-        #[cfg(target_os = "macos")]
+        #[cfg(feature = "keychain")]
         {
             let label = format!("com.legend.cli.{env}.{name}");
             let signer = KeychainSigner::generate(&label)?;
             Ok((Box::new(signer), "keychain".into(), Some(label), None))
         }
-        #[cfg(not(target_os = "macos"))]
+        #[cfg(not(feature = "keychain"))]
         {
-            anyhow::bail!("macOS Keychain not available. Pass use_file_key: true.");
+            anyhow::bail!(
+                "iCloud Keychain is not available in this build. Pass use_file_key: true,\n\
+                 or install via `brew install legend-cli` for iCloud Keychain support."
+            );
         }
     }
 }
