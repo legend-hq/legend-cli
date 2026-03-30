@@ -1,4 +1,4 @@
-#![cfg(target_os = "macos")]
+#![cfg(feature = "keychain")]
 
 use core_foundation::base::TCFType;
 use core_foundation::boolean::CFBoolean;

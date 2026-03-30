@@ -54,8 +54,8 @@ APP_BUNDLE="$BINARY_DIR/legend-cli.app"
 
 # --- Build ---
 if [[ "$SKIP_BUILD" == false ]]; then
-  echo "Building legend-cli ($PROFILE)..."
-  cargo build --$PROFILE -p legend-cli $BUILD_FLAGS
+  echo "Building legend-cli ($PROFILE) with keychain support..."
+  cargo build --$PROFILE -p legend-cli --features keychain $BUILD_FLAGS
 fi
 
 if [[ ! -f "$BINARY" ]]; then

@@ -1,42 +1,24 @@
 use crate::config::{self, Env};
 use legend_signer::Signer;
 
-pub fn create(name: &str, env: Env) -> anyhow::Result<()> {
-    #[cfg(target_os = "macos")]
-    {
-        let label = format!("com.legend.cli.{env}.{name}");
-        let signer = legend_signer::KeychainSigner::generate(&label)?;
-        eprintln!("Key created in iCloud Keychain (label: {label})");
-        println!("{}", signer.public_key_hex());
-        Ok(())
+// --- File keys ---
+
+fn create_file_key(name: &str, env: Env) -> anyhow::Result<()> {
+    let dir = config::keys_dir(env);
+    std::fs::create_dir_all(&dir)?;
+    let path = dir.join(format!("{name}.key"));
+    if path.exists() {
+        anyhow::bail!("Key '{name}' already exists at {}", path.display());
     }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (name, env);
-        anyhow::bail!("Keychain not available on this platform. Use `keygen --use-file-key`.");
-    }
+    let signer = legend_signer::FileSigner::generate(&path)?;
+    eprintln!("Key saved to {}", path.display());
+    println!("{}", signer.public_key_hex());
+    Ok(())
 }
 
-pub fn list(env: Env) -> anyhow::Result<()> {
-    let mut count = 0;
-
-    // Keychain keys (macOS only)
-    #[cfg(target_os = "macos")]
-    {
-        let prefix = format!("com.legend.cli.{env}.");
-        let keys = legend_signer::keychain::list_keys(&prefix)?;
-        for (label, pubkey) in &keys {
-            let name = label.strip_prefix(&prefix).unwrap_or(label);
-            println!("{name}\tkeychain\t{pubkey}");
-            if let Ok(attrs) = legend_signer::keychain::key_attributes(label) {
-                eprintln!("  attrs: {attrs}");
-            }
-            count += 1;
-        }
-    }
-
-    // File keys
+fn list_file_keys(env: Env) -> anyhow::Result<Vec<(String, String)>> {
     let keys_dir = config::keys_dir(env);
+    let mut keys = Vec::new();
     if keys_dir.exists() {
         for entry in std::fs::read_dir(&keys_dir)? {
             let entry = entry?;
@@ -45,16 +27,153 @@ pub fn list(env: Env) -> anyhow::Result<()> {
                 let name = path
                     .file_stem()
                     .and_then(|s| s.to_str())
-                    .unwrap_or("?");
+                    .unwrap_or("?")
+                    .to_string();
                 match legend_signer::FileSigner::load(&path) {
-                    Ok(signer) => {
-                        println!("{name}\tfile\t{}", signer.public_key_hex());
-                        count += 1;
-                    }
+                    Ok(signer) => keys.push((name, signer.public_key_hex().to_string())),
                     Err(e) => eprintln!("warning: failed to load {}: {e}", path.display()),
                 }
             }
         }
+    }
+    Ok(keys)
+}
+
+fn sign_file_key(name: &str, digest: &[u8], env: Env) -> anyhow::Result<Option<Vec<u8>>> {
+    let key_path = config::keys_dir(env).join(format!("{name}.key"));
+    if !key_path.exists() {
+        return Ok(None);
+    }
+    let signer = legend_signer::FileSigner::load(&key_path)?;
+    Ok(Some(signer.sign(digest)?))
+}
+
+fn delete_file_key(name: &str, env: Env) -> anyhow::Result<()> {
+    let path = config::keys_dir(env).join(format!("{name}.key"));
+    if !path.exists() {
+        anyhow::bail!("File key '{name}' not found at {}", path.display());
+    }
+    std::fs::remove_file(&path)?;
+    eprintln!("Deleted file key: {}", path.display());
+    Ok(())
+}
+
+// --- Keychain keys ---
+
+#[cfg(feature = "keychain")]
+fn keychain_label(name: &str, env: Env) -> String {
+    format!("com.legend.cli.{env}.{name}")
+}
+
+#[cfg(feature = "keychain")]
+fn keychain_prefix(env: Env) -> String {
+    format!("com.legend.cli.{env}.")
+}
+
+#[cfg(feature = "keychain")]
+fn create_keychain_key(name: &str, env: Env) -> anyhow::Result<()> {
+    let label = keychain_label(name, env);
+    let signer = legend_signer::KeychainSigner::generate(&label)?;
+    eprintln!("Key created in iCloud Keychain (label: {label})");
+    println!("{}", signer.public_key_hex());
+    Ok(())
+}
+
+/// Returns (name, pubkey, label) tuples.
+#[cfg(feature = "keychain")]
+fn list_keychain_keys(env: Env) -> anyhow::Result<Vec<(String, String, String)>> {
+    let prefix = keychain_prefix(env);
+    let raw = legend_signer::keychain::list_keys(&prefix)?;
+    Ok(raw
+        .into_iter()
+        .map(|(label, pubkey)| {
+            let name = label
+                .strip_prefix(&prefix)
+                .unwrap_or(&label)
+                .to_string();
+            (name, pubkey, label)
+        })
+        .collect())
+}
+
+#[cfg(feature = "keychain")]
+fn sign_keychain_key(name: &str, digest: &[u8], env: Env) -> anyhow::Result<Option<Vec<u8>>> {
+    let label = keychain_label(name, env);
+    match legend_signer::KeychainSigner::load(&label) {
+        Ok(signer) => Ok(Some(signer.sign(digest)?)),
+        Err(_) => Ok(None),
+    }
+}
+
+#[cfg(feature = "keychain")]
+fn delete_keychain_key(name: &str, env: Env) -> anyhow::Result<()> {
+    let label = keychain_label(name, env);
+    legend_signer::keychain::delete_key(&label)?;
+    eprintln!("Deleted keychain key: {label}");
+    Ok(())
+}
+
+// --- Dispatch helper ---
+
+fn dispatch_default(
+    file: bool,
+    keychain: bool,
+    file_fn: impl FnOnce() -> anyhow::Result<()>,
+    #[cfg(feature = "keychain")] keychain_fn: impl FnOnce() -> anyhow::Result<()>,
+) -> anyhow::Result<()> {
+    if file {
+        return file_fn();
+    }
+    if keychain {
+        #[cfg(feature = "keychain")]
+        return keychain_fn();
+
+        #[cfg(not(feature = "keychain"))]
+        anyhow::bail!(
+            "iCloud Keychain is not available in this build.\n\
+             Install via `brew install legend-cli` for iCloud Keychain support."
+        );
+    }
+
+    #[cfg(feature = "keychain")]
+    return keychain_fn();
+
+    #[cfg(not(feature = "keychain"))]
+    return file_fn();
+}
+
+// --- Public commands ---
+
+pub fn create(name: &str, env: Env, file: bool, keychain: bool) -> anyhow::Result<()> {
+    dispatch_default(
+        file,
+        keychain,
+        || create_file_key(name, env),
+        #[cfg(feature = "keychain")]
+        || create_keychain_key(name, env),
+    )
+}
+
+pub fn list(env: Env, verbose: bool) -> anyhow::Result<()> {
+    let mut count = 0;
+
+    #[cfg(feature = "keychain")]
+    for (name, pubkey, label) in list_keychain_keys(env)? {
+        println!("{name}\tkeychain\t{pubkey}");
+        if verbose {
+            if let Ok(attrs) = legend_signer::keychain::key_attributes(&label) {
+                eprintln!("  attrs: {attrs}");
+            }
+        }
+        count += 1;
+    }
+
+    #[cfg(not(feature = "keychain"))]
+    let _ = verbose;
+
+    for (name, pubkey) in list_file_keys(env)? {
+        println!("{name}\tfile\t{pubkey}");
+        count += 1;
     }
 
     if count == 0 {
@@ -69,39 +188,26 @@ pub fn sign(name: &str, digest: &str, env: Env) -> anyhow::Result<()> {
     let digest_bytes = hex::decode(digest.strip_prefix("0x").unwrap_or(digest))
         .map_err(|e| anyhow::anyhow!("Invalid hex digest: {e}"))?;
 
-    // Try keychain first (macOS), then file
-    #[cfg(target_os = "macos")]
-    {
-        let label = format!("com.legend.cli.{env}.{name}");
-        if let Ok(signer) = legend_signer::KeychainSigner::load(&label) {
-            let sig = signer.sign(&digest_bytes)?;
-            println!("0x{}", hex::encode(&sig));
-            return Ok(());
-        }
-    }
-
-    let key_path = config::keys_dir(env).join(format!("{name}.key"));
-    if key_path.exists() {
-        let signer = legend_signer::FileSigner::load(&key_path)?;
-        let sig = signer.sign(&digest_bytes)?;
+    #[cfg(feature = "keychain")]
+    if let Some(sig) = sign_keychain_key(name, &digest_bytes, env)? {
         println!("0x{}", hex::encode(&sig));
         return Ok(());
     }
 
-    anyhow::bail!("Key '{name}' not found in keychain or file store.");
+    if let Some(sig) = sign_file_key(name, &digest_bytes, env)? {
+        println!("0x{}", hex::encode(&sig));
+        return Ok(());
+    }
+
+    anyhow::bail!("Key '{name}' not found.");
 }
 
-pub fn delete(name: &str, env: Env) -> anyhow::Result<()> {
-    #[cfg(target_os = "macos")]
-    {
-        let label = format!("com.legend.cli.{env}.{name}");
-        legend_signer::keychain::delete_key(&label)?;
-        eprintln!("Deleted key: {label}");
-        Ok(())
-    }
-    #[cfg(not(target_os = "macos"))]
-    {
-        let _ = (name, env);
-        anyhow::bail!("Keychain not available on this platform.");
-    }
+pub fn delete(name: &str, env: Env, file: bool, keychain: bool) -> anyhow::Result<()> {
+    dispatch_default(
+        file,
+        keychain,
+        || delete_file_key(name, env),
+        #[cfg(feature = "keychain")]
+        || delete_keychain_key(name, env),
+    )
 }
