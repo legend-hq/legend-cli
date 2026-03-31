@@ -155,7 +155,7 @@ fn tool_definitions() -> Vec<Value> {
             "Create a new sub-account. Use keygen=true to generate a P256 key and create a Turnkey-backed account.",
             json!({
                 "keygen": { "type": "boolean", "description": "Generate a P256 key and create a turnkey_p256 account (default: true)" },
-                "use_file_key": { "type": "boolean", "description": "Use file-based key instead of Secure Enclave (default: false)" },
+                "use_file_key": { "type": "boolean", "description": "Use file-based key instead of the default (iCloud Keychain on macOS brew builds)" },
                 "signer_type": { "type": "string", "description": "Signer type when not using keygen: \"eoa\" or \"turnkey_p256\"" },
                 "ethereum_signer": { "type": "string", "description": "Ethereum address (for eoa accounts)" }
             }),

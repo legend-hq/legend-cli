@@ -1,0 +1,57 @@
+# Legend CLI
+
+Legend lets you earn yield, swap tokens, transfer assets, borrow, and repay
+across multiple blockchains. It handles bridging, gas, token approvals, and
+on-chain execution automatically. Non-custodial: signing keys never leave
+your machine.
+
+Full docs: https://docs.legend.xyz
+Full skill file: https://legend.xyz/SKILL.md
+
+## Quick Start
+
+  legend-cli login                                # log in with Google
+  legend-cli accounts create --keygen             # create account + signing key
+  legend-cli folio <account_id>                   # view portfolio
+
+## MCP Server
+
+Connect as a local MCP server for full plan-sign-execute in one tool call:
+
+  claude mcp add legend -- legend-cli mcp serve
+
+Or for Claude Desktop / other MCP clients, add to your config:
+
+  { "mcpServers": { "legend": { "command": "legend-cli", "args": ["mcp", "serve"] } } }
+
+MCP tools: list_accounts, set_account, get_portfolio, earn, withdraw, swap,
+transfer, borrow, repay, execute_plan, list_networks, list_assets, and more.
+
+## Key Concepts
+
+- Every operation follows plan-sign-execute. With MCP, action tools do all
+  three in one call. Set execute=false to preview/quote first.
+- Amounts are in smallest units (like cents). A 6-decimal token: $100 = "100000000".
+  Call list_assets to look up decimals.
+- Portfolio balances use scientific notation: "300.25e6" = 300.25 USDC.
+- Plans expire in 2 minutes -- create and execute in the same flow.
+- Gas and bridging are handled automatically.
+
+## Common Commands
+
+  legend-cli accounts list                        # list sub-accounts
+  legend-cli folio <id>                           # portfolio balances + positions
+  legend-cli plan earn <id> --amount 100000000 --asset usdc --network base --protocol compound --execute
+  legend-cli plan swap <id> --sell-asset usdc --buy-asset weth --sell-amount 100000000 --network base --execute
+  legend-cli plan transfer <id> --amount 50000000 --asset usdc --network base --recipient 0x... --execute
+  legend-cli keys list                            # list local signing keys
+  legend-cli networks                             # list supported networks
+  legend-cli assets                               # list supported tokens
+
+## Flags
+
+  --dev / --stage / --prod    Target environment (default: prod)
+  --profile <name>            Named profile (default: default)
+  --json                      Force JSON output
+  --quiet                     Minimal output (IDs only)
+  -v / --verbose              Log HTTP requests to stderr
