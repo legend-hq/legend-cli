@@ -110,6 +110,8 @@ enum Commands {
     Assets,
     /// Show current auth info
     Whoami,
+    /// Print setup and usage guide (for AI agents and humans)
+    Skill,
     /// Manage configuration
     Config {
         #[command(subcommand)]
@@ -1069,6 +1071,11 @@ async fn main() {
                 Ok(())
             }
             .await
+        }
+
+        Commands::Skill => {
+            print!("{}", include_str!("skill.txt"));
+            Ok(())
         }
 
         Commands::Config { action } => match action {

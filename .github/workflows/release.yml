@@ -42,7 +42,9 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }} -p legend-cli
+        run: >
+          cargo build --release --target ${{ matrix.target }} -p legend-cli
+          ${{ runner.os == 'macOS' && '--features keychain' || '' }}
 
       # --- macOS: assemble .app bundle, code sign, notarize ---
       - name: Import signing certificate
