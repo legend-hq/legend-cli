@@ -25,9 +25,17 @@ pub fn print_json<T: Serialize>(value: &T) {
     println!("{}", serde_json::to_string_pretty(value).unwrap());
 }
 
-pub fn print_account(account: &Account, mode: &OutputMode) {
+pub fn print_account(account: &Account, accessible: bool, mode: &OutputMode) {
     match mode {
-        OutputMode::Json => print_json(account),
+        OutputMode::Json => {
+            #[derive(Serialize)]
+            struct AccountWithAccessible<'a> {
+                #[serde(flatten)]
+                account: &'a Account,
+                accessible: bool,
+            }
+            print_json(&AccountWithAccessible { account, accessible });
+        }
         OutputMode::Quiet => println!("{}", account.account_id),
         OutputMode::Table => {
             let mut table = Table::new();
@@ -39,6 +47,9 @@ pub fn print_account(account: &Account, mode: &OutputMode) {
             if let Some(addr) = &account.ethereum_signer_address {
                 table.add_row(vec!["Ethereum Signer", addr]);
             }
+            if let Some(pk) = &account.p256_public_key {
+                table.add_row(vec!["P256 Public Key", pk]);
+            }
             if let Some(addr) = &account.legend_wallet_address {
                 table.add_row(vec!["Legend Wallet", addr]);
             }
@@ -48,15 +59,50 @@ pub fn print_account(account: &Account, mode: &OutputMode) {
             if let Some(org) = &account.turnkey_sub_org_id {
                 table.add_row(vec!["Turnkey Sub-Org", org]);
             }
+            if let Some(ks) = &account.key_storage {
+                table.add_row(vec!["Key Storage", ks]);
+            }
+            table.add_row(vec!["Accessible", if accessible { "yes" } else { "no" }]);
             table.add_row(vec!["Created At", &account.created_at]);
             println!("{table}");
         }
     }
 }
 
-pub fn print_account_list(list: &AccountList, mode: &OutputMode) {
+pub fn print_account_list(
+    list: &AccountList,
+    accessibility: &std::collections::HashMap<String, bool>,
+    all: bool,
+    mode: &OutputMode,
+) {
     match mode {
-        OutputMode::Json => print_json(list),
+        OutputMode::Json => {
+            if all {
+                #[derive(Serialize)]
+                struct AccountWithAccessible<'a> {
+                    #[serde(flatten)]
+                    account: &'a Account,
+                    accessible: bool,
+                }
+                #[derive(Serialize)]
+                struct AccountListWithAccessible<'a> {
+                    accounts: Vec<AccountWithAccessible<'a>>,
+                }
+                let annotated = AccountListWithAccessible {
+                    accounts: list
+                        .accounts
+                        .iter()
+                        .map(|a| AccountWithAccessible {
+                            account: a,
+                            accessible: accessibility.get(&a.account_id).copied().unwrap_or(false),
+                        })
+                        .collect(),
+                };
+                print_json(&annotated);
+            } else {
+                print_json(list);
+            }
+        }
         OutputMode::Quiet => {
             for a in &list.accounts {
                 println!("{}", a.account_id);
@@ -64,19 +110,44 @@ pub fn print_account_list(list: &AccountList, mode: &OutputMode) {
         }
         OutputMode::Table => {
             let mut table = Table::new();
-            table.set_header(vec![
-                "Account ID",
-                "Signer Type",
-                "Ethereum Signer",
-                "Created At",
-            ]);
-            for a in &list.accounts {
-                table.add_row(vec![
-                    &a.account_id,
-                    a.signer_type.as_deref().unwrap_or("-"),
-                    a.ethereum_signer_address.as_deref().unwrap_or("-"),
-                    &a.created_at,
+            if all {
+                table.set_header(vec![
+                    "Account ID",
+                    "Signer Type",
+                    "Ethereum Signer",
+                    "Key Storage",
+                    "Accessible",
+                    "Created At",
                 ]);
+                for a in &list.accounts {
+                    let accessible = accessibility.get(&a.account_id).copied().unwrap_or(false);
+                    let accessible_str = if accessible { "yes" } else { "no" };
+                    table.add_row(vec![
+                        &a.account_id,
+                        a.signer_type.as_deref().unwrap_or("-"),
+                        a.ethereum_signer_address.as_deref().unwrap_or("-"),
+                        a.key_storage.as_deref().unwrap_or("-"),
+                        accessible_str,
+                        &a.created_at,
+                    ]);
+                }
+            } else {
+                table.set_header(vec![
+                    "Account ID",
+                    "Signer Type",
+                    "Ethereum Signer",
+                    "Key Storage",
+                    "Created At",
+                ]);
+                for a in &list.accounts {
+                    table.add_row(vec![
+                        &a.account_id,
+                        a.signer_type.as_deref().unwrap_or("-"),
+                        a.ethereum_signer_address.as_deref().unwrap_or("-"),
+                        a.key_storage.as_deref().unwrap_or("-"),
+                        &a.created_at,
+                    ]);
+                }
             }
             println!("{table}");
         }

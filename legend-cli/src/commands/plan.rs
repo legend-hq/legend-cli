@@ -355,6 +355,415 @@ pub async fn repay(
     .await
 }
 
+pub async fn migrate(
+    account_id: &str,
+    amount: &str,
+    asset: &str,
+    from_protocol: &str,
+    to_protocol: &str,
+    network: &str,
+    from_market: &Option<String>,
+    to_market: &Option<String>,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .migrate(
+            account_id,
+            &MigrateParams {
+                amount: amount.into(),
+                asset: asset.into(),
+                from_protocol: from_protocol.into(),
+                to_protocol: to_protocol.into(),
+                network: network.into(),
+                from_market: from_market.clone(),
+                to_market: to_market.clone(),
+                migrate_only_supply_balances: None,
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
+pub async fn swap_and_supply(
+    account_id: &str,
+    sell_asset: &str,
+    sell_amount: &str,
+    buy_asset: &str,
+    protocol: &str,
+    network: &str,
+    market: &Option<String>,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .swap_and_supply(
+            account_id,
+            &SwapAndSupplyParams {
+                sell_asset: sell_asset.into(),
+                sell_amount: sell_amount.into(),
+                buy_asset: buy_asset.into(),
+                protocol: protocol.into(),
+                network: network.into(),
+                market: market.clone(),
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
+pub async fn claim_rewards(
+    account_id: &str,
+    asset: &str,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .claim_rewards(
+            account_id,
+            &ClaimRewardsParams {
+                asset: asset.into(),
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
+pub async fn reinvest_rewards(
+    account_id: &str,
+    asset: &str,
+    protocol: &str,
+    network: &str,
+    reward_assets: &[String],
+    market: &Option<String>,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .reinvest_rewards(
+            account_id,
+            &ReinvestRewardsParams {
+                asset: asset.into(),
+                protocol: protocol.into(),
+                network: network.into(),
+                reward_assets: reward_assets.to_vec(),
+                market: market.clone(),
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
+pub async fn loop_long(
+    account_id: &str,
+    exposure_asset: &str,
+    backing_asset: &str,
+    market_id: &str,
+    is_increase: bool,
+    exposure_amount: &str,
+    max_swap_backing_amount: &str,
+    max_provided_backing_amount: &str,
+    pool_fee: u64,
+    network: &str,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .loop_long(
+            account_id,
+            &LoopLongParams {
+                exposure_asset: exposure_asset.into(),
+                backing_asset: backing_asset.into(),
+                market_id: market_id.into(),
+                is_increase,
+                exposure_amount: exposure_amount.into(),
+                max_swap_backing_amount: max_swap_backing_amount.into(),
+                max_provided_backing_amount: max_provided_backing_amount.into(),
+                pool_fee,
+                network: network.into(),
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
+pub async fn unloop_long(
+    account_id: &str,
+    exposure_asset: &str,
+    backing_asset: &str,
+    market_id: &str,
+    exposure_amount: &str,
+    backing_amount_to_exit: &str,
+    min_swap_backing_amount: &str,
+    pool_fee: u64,
+    network: &str,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .unloop_long(
+            account_id,
+            &UnloopLongParams {
+                exposure_asset: exposure_asset.into(),
+                backing_asset: backing_asset.into(),
+                market_id: market_id.into(),
+                exposure_amount: exposure_amount.into(),
+                backing_amount_to_exit: backing_amount_to_exit.into(),
+                min_swap_backing_amount: min_swap_backing_amount.into(),
+                pool_fee,
+                network: network.into(),
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
+pub async fn add_backing(
+    account_id: &str,
+    exposure_asset: &str,
+    backing_asset: &str,
+    market_id: &str,
+    amount: &str,
+    is_short: bool,
+    network: &str,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .add_backing(
+            account_id,
+            &AddBackingParams {
+                exposure_asset: exposure_asset.into(),
+                backing_asset: backing_asset.into(),
+                market_id: market_id.into(),
+                amount: amount.into(),
+                is_short,
+                network: network.into(),
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
+pub async fn withdraw_backing(
+    account_id: &str,
+    exposure_asset: &str,
+    backing_asset: &str,
+    market_id: &str,
+    amount: &str,
+    is_short: bool,
+    network: &str,
+    execute: bool,
+    key: &Option<String>,
+    env: Env,
+    profile_name: &str,
+    base_url: &Option<String>,
+    verbose: bool,
+    mode: &OutputMode,
+) -> anyhow::Result<()> {
+    let query_key = resolve_query_key(key, env, profile_name).map_err(anyhow::Error::msg)?;
+    let client = LegendPrime::new(Config {
+        query_key,
+        base_url: base_url.clone(),
+        verbose,
+    });
+
+    let plan = client
+        .plan
+        .withdraw_backing(
+            account_id,
+            &WithdrawBackingParams {
+                exposure_asset: exposure_asset.into(),
+                backing_asset: backing_asset.into(),
+                market_id: market_id.into(),
+                amount: amount.into(),
+                is_short,
+                network: network.into(),
+            },
+        )
+        .await?;
+
+    maybe_execute(
+        &client,
+        &plan,
+        account_id,
+        execute,
+        env,
+        profile_name,
+        verbose,
+        mode,
+    )
+    .await
+}
+
 pub async fn execute_plan(
     account_id: &str,
     plan_id: &str,

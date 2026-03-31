@@ -127,6 +127,41 @@ async fn test_reference_data() {
     assert!(!prime.id.is_empty());
 }
 
+#[tokio::test]
+async fn test_account_key_storage() {
+    let config = load_test_config();
+    let client = make_client(&config);
+    let (signer, _dir) = make_file_signer();
+
+    // Create with key_storage set
+    let account = client
+        .accounts
+        .create(&CreateAccountParams {
+            signer_type: "turnkey_p256".into(),
+            p256_public_key: Some(signer.public_key_hex().to_string()),
+            key_storage: Some("file".into()),
+            ..Default::default()
+        })
+        .await
+        .unwrap();
+
+    // Returned immediately in create response
+    assert_eq!(account.key_storage.as_deref(), Some("file"));
+
+    // Persisted — visible in get
+    let fetched = client.accounts.get(&account.account_id).await.unwrap();
+    assert_eq!(fetched.key_storage.as_deref(), Some("file"));
+
+    // Visible in list
+    let list = client.accounts.list().await.unwrap();
+    let listed = list
+        .accounts
+        .iter()
+        .find(|a| a.account_id == account.account_id)
+        .unwrap();
+    assert_eq!(listed.key_storage.as_deref(), Some("file"));
+}
+
 // --- Swap test (full flow: keygen → create → fund → plan → sign → execute) ---
 
 #[tokio::test]

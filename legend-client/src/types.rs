@@ -30,6 +30,8 @@ pub struct CreateAccountParams {
     pub solana_signer_address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub p256_public_key: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_storage: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -37,9 +39,11 @@ pub struct Account {
     pub account_id: String,
     pub signer_type: Option<String>,
     pub ethereum_signer_address: Option<String>,
+    pub p256_public_key: Option<String>,
     pub legend_wallet_address: Option<String>,
     pub solana_wallet_address: Option<String>,
     pub turnkey_sub_org_id: Option<String>,
+    pub key_storage: Option<String>,
     pub created_at: String,
 }
 
@@ -240,6 +244,8 @@ pub struct ReinvestRewardsParams {
     pub protocol: String,
     pub network: String,
     pub reward_assets: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub market: Option<String>,
 }
 
 // --- Activity types ---
@@ -280,4 +286,70 @@ pub struct Network {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AssetMap {
     pub assets: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MarketList {
+    pub markets: Vec<Market>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "protocol")]
+pub enum Market {
+    #[serde(rename = "morpho_market")]
+    MorphoMarket {
+        chain_id: u64,
+        morpho: String,
+        market_id: String,
+        irm: String,
+        lltv: u64,
+        oracle: String,
+        loan_token: String,
+        collateral_token: String,
+        wad: u64,
+    },
+    #[serde(rename = "morpho_vault")]
+    MorphoVault {
+        chain_id: u64,
+        name: String,
+        symbol: String,
+        vault: String,
+        asset: String,
+        wad: u64,
+    },
+    #[serde(rename = "aave_market")]
+    AaveMarket {
+        chain_id: u64,
+        name: String,
+        pool: String,
+        ui_pool_data_provider: String,
+        market_base_currency: String,
+        ray_scale: f64,
+        bps_scale: f64,
+        reserves: Vec<AaveReserve>,
+    },
+    #[serde(rename = "comet")]
+    Comet {
+        chain_id: u64,
+        name: String,
+        symbol: String,
+        base_asset: String,
+        factor_scale: u64,
+        comet_address: String,
+        rewards_address: String,
+        collateral_assets: Vec<CometCollateral>,
+    },
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AaveReserve {
+    pub symbol: String,
+    pub decimals: u64,
+    pub underlying_asset: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CometCollateral {
+    pub asset: String,
+    pub price_feed: String,
 }

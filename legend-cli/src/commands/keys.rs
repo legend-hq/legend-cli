@@ -1,5 +1,27 @@
 use crate::config::{self, Env};
 use legend_signer::Signer;
+use std::collections::HashSet;
+
+/// Returns the hex public keys of all keys accessible on this machine for the given environment.
+/// Probes both the iCloud Keychain (if available) and the file-based key store.
+pub fn local_pubkeys(env: Env) -> HashSet<String> {
+    let mut pubkeys = HashSet::new();
+
+    #[cfg(feature = "keychain")]
+    if let Ok(keys) = list_keychain_keys(env) {
+        for (_name, pubkey, _label) in keys {
+            pubkeys.insert(pubkey.to_ascii_lowercase());
+        }
+    }
+
+    if let Ok(keys) = list_file_keys(env) {
+        for (_name, pubkey) in keys {
+            pubkeys.insert(pubkey.to_ascii_lowercase());
+        }
+    }
+
+    pubkeys
+}
 
 // --- File keys ---
 

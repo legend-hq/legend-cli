@@ -67,6 +67,7 @@ async fn create_turnkey_p256_account() {
             "account_id": "acc_tk256",
             "signer_type": "turnkey_p256",
             "ethereum_signer_address": "0xdeadbeef00000000000000000000000000000001",
+            "p256_public_key": "0x02a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1",
             "legend_wallet_address": "0xabc456",
             "turnkey_sub_org_id": "sub_org_xyz",
             "created_at": "2026-03-18T00:00:00Z"
@@ -89,6 +90,10 @@ async fn create_turnkey_p256_account() {
 
     assert_eq!(account.account_id, "acc_tk256");
     assert_eq!(account.turnkey_sub_org_id.as_deref(), Some("sub_org_xyz"));
+    assert_eq!(
+        account.p256_public_key.as_deref(),
+        Some("0x02a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1")
+    );
 }
 
 #[tokio::test]
@@ -163,6 +168,7 @@ async fn api_error_404() {
             code,
             message,
             status,
+            ..
         } => {
             assert_eq!(code, "account_not_found");
             assert_eq!(message, "Account not found");
