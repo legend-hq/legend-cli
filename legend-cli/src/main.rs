@@ -120,7 +120,11 @@ enum Commands {
 #[derive(Subcommand)]
 enum AccountsAction {
     /// List all sub-accounts
-    List,
+    List {
+        /// Show all accounts, including those whose keys are not accessible on this machine
+        #[arg(long)]
+        all: bool,
+    },
     /// Get a sub-account by ID
     Get { account_id: String },
     /// Create a new sub-account
@@ -269,6 +273,150 @@ enum PlanAction {
         #[arg(long)]
         execute: bool,
     },
+    /// Migrate a yield position between protocols
+    Migrate {
+        account_id: String,
+        #[arg(long)]
+        amount: String,
+        #[arg(long)]
+        asset: String,
+        #[arg(long)]
+        from_protocol: String,
+        #[arg(long)]
+        to_protocol: String,
+        #[arg(long)]
+        network: String,
+        #[arg(long)]
+        from_market: Option<String>,
+        #[arg(long)]
+        to_market: Option<String>,
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Swap an asset and supply the result into a yield protocol
+    SwapAndSupply {
+        account_id: String,
+        #[arg(long)]
+        sell_asset: String,
+        #[arg(long)]
+        sell_amount: String,
+        #[arg(long)]
+        buy_asset: String,
+        #[arg(long)]
+        protocol: String,
+        #[arg(long)]
+        network: String,
+        #[arg(long)]
+        market: Option<String>,
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Claim unclaimed protocol rewards
+    ClaimRewards {
+        account_id: String,
+        #[arg(long)]
+        asset: String,
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Claim and reinvest protocol rewards
+    ReinvestRewards {
+        account_id: String,
+        #[arg(long)]
+        asset: String,
+        #[arg(long)]
+        protocol: String,
+        #[arg(long)]
+        network: String,
+        #[arg(long, num_args = 1..)]
+        reward_assets: Vec<String>,
+        #[arg(long)]
+        market: Option<String>,
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Create a leveraged long position via looping
+    LoopLong {
+        account_id: String,
+        #[arg(long)]
+        exposure_asset: String,
+        #[arg(long)]
+        backing_asset: String,
+        #[arg(long)]
+        market_id: String,
+        #[arg(long)]
+        is_increase: bool,
+        #[arg(long)]
+        exposure_amount: String,
+        #[arg(long)]
+        max_swap_backing_amount: String,
+        #[arg(long)]
+        max_provided_backing_amount: String,
+        #[arg(long)]
+        pool_fee: u64,
+        #[arg(long)]
+        network: String,
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Unwind a leveraged long position
+    UnloopLong {
+        account_id: String,
+        #[arg(long)]
+        exposure_asset: String,
+        #[arg(long)]
+        backing_asset: String,
+        #[arg(long)]
+        market_id: String,
+        #[arg(long)]
+        exposure_amount: String,
+        #[arg(long)]
+        backing_amount_to_exit: String,
+        #[arg(long)]
+        min_swap_backing_amount: String,
+        #[arg(long)]
+        pool_fee: u64,
+        #[arg(long)]
+        network: String,
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Add backing to a Morpho leveraged position
+    AddBacking {
+        account_id: String,
+        #[arg(long)]
+        exposure_asset: String,
+        #[arg(long)]
+        backing_asset: String,
+        #[arg(long)]
+        market_id: String,
+        #[arg(long)]
+        amount: String,
+        #[arg(long)]
+        is_short: bool,
+        #[arg(long)]
+        network: String,
+        #[arg(long)]
+        execute: bool,
+    },
+    /// Withdraw backing from a Morpho leveraged position
+    WithdrawBacking {
+        account_id: String,
+        #[arg(long)]
+        exposure_asset: String,
+        #[arg(long)]
+        backing_asset: String,
+        #[arg(long)]
+        market_id: String,
+        #[arg(long)]
+        amount: String,
+        #[arg(long)]
+        is_short: bool,
+        #[arg(long)]
+        network: String,
+        #[arg(long)]
+        execute: bool,
+    },
     /// Execute a plan with a signature
     Execute {
         account_id: String,
@@ -351,8 +499,8 @@ async fn main() {
 
     let result = match &cli.command {
         Commands::Accounts { action } => match action {
-            AccountsAction::List => {
-                commands::accounts::list(&cli.key, env, &cli.profile, &base, cli.verbose, &mode)
+            AccountsAction::List { all } => {
+                commands::accounts::list(&cli.key, env, &cli.profile, &base, cli.verbose, *all, &mode)
                     .await
             }
             AccountsAction::Get { account_id } => {
@@ -566,6 +714,230 @@ async fn main() {
                     asset,
                     network,
                     recipient,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::Migrate {
+                account_id,
+                amount,
+                asset,
+                from_protocol,
+                to_protocol,
+                network,
+                from_market,
+                to_market,
+                execute,
+            } => {
+                commands::plan::migrate(
+                    account_id,
+                    amount,
+                    asset,
+                    from_protocol,
+                    to_protocol,
+                    network,
+                    from_market,
+                    to_market,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::SwapAndSupply {
+                account_id,
+                sell_asset,
+                sell_amount,
+                buy_asset,
+                protocol,
+                network,
+                market,
+                execute,
+            } => {
+                commands::plan::swap_and_supply(
+                    account_id,
+                    sell_asset,
+                    sell_amount,
+                    buy_asset,
+                    protocol,
+                    network,
+                    market,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::ClaimRewards {
+                account_id,
+                asset,
+                execute,
+            } => {
+                commands::plan::claim_rewards(
+                    account_id,
+                    asset,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::ReinvestRewards {
+                account_id,
+                asset,
+                protocol,
+                network,
+                reward_assets,
+                market,
+                execute,
+            } => {
+                commands::plan::reinvest_rewards(
+                    account_id,
+                    asset,
+                    protocol,
+                    network,
+                    reward_assets,
+                    market,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::LoopLong {
+                account_id,
+                exposure_asset,
+                backing_asset,
+                market_id,
+                is_increase,
+                exposure_amount,
+                max_swap_backing_amount,
+                max_provided_backing_amount,
+                pool_fee,
+                network,
+                execute,
+            } => {
+                commands::plan::loop_long(
+                    account_id,
+                    exposure_asset,
+                    backing_asset,
+                    market_id,
+                    *is_increase,
+                    exposure_amount,
+                    max_swap_backing_amount,
+                    max_provided_backing_amount,
+                    *pool_fee,
+                    network,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::UnloopLong {
+                account_id,
+                exposure_asset,
+                backing_asset,
+                market_id,
+                exposure_amount,
+                backing_amount_to_exit,
+                min_swap_backing_amount,
+                pool_fee,
+                network,
+                execute,
+            } => {
+                commands::plan::unloop_long(
+                    account_id,
+                    exposure_asset,
+                    backing_asset,
+                    market_id,
+                    exposure_amount,
+                    backing_amount_to_exit,
+                    min_swap_backing_amount,
+                    *pool_fee,
+                    network,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::AddBacking {
+                account_id,
+                exposure_asset,
+                backing_asset,
+                market_id,
+                amount,
+                is_short,
+                network,
+                execute,
+            } => {
+                commands::plan::add_backing(
+                    account_id,
+                    exposure_asset,
+                    backing_asset,
+                    market_id,
+                    amount,
+                    *is_short,
+                    network,
+                    *execute,
+                    &cli.key,
+                    env,
+                    &cli.profile,
+                    &base,
+                    cli.verbose,
+                    &mode,
+                )
+                .await
+            }
+            PlanAction::WithdrawBacking {
+                account_id,
+                exposure_asset,
+                backing_asset,
+                market_id,
+                amount,
+                is_short,
+                network,
+                execute,
+            } => {
+                commands::plan::withdraw_backing(
+                    account_id,
+                    exposure_asset,
+                    backing_asset,
+                    market_id,
+                    amount,
+                    *is_short,
+                    network,
                     *execute,
                     &cli.key,
                     env,

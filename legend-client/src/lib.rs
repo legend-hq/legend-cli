@@ -28,4 +28,10 @@ impl LegendPrime {
             .request(Method::GET, "/assets", None::<&()>)
             .await
     }
+
+    pub async fn markets(&self) -> Result<MarketList> {
+        self.inner
+            .request(Method::GET, "/markets", None::<&()>)
+            .await
+    }
 }

@@ -62,6 +62,8 @@ impl ClientInner {
             let err_body: serde_json::Value = serde_json::from_str(&raw_body)
                 .unwrap_or_else(|_| serde_json::json!({"code": "unknown", "detail": raw_body}));
 
+            let details = err_body.get("details").cloned();
+
             return Err(LegendPrimeError::Api {
                 code: err_body["code"].as_str().unwrap_or("unknown").to_string(),
                 message: err_body["detail"]
@@ -69,6 +71,7 @@ impl ClientInner {
                     .unwrap_or(&raw_body)
                     .to_string(),
                 status: status.as_u16(),
+                details,
             });
         }
 
