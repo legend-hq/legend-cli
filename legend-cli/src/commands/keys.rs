@@ -121,7 +121,7 @@ fn list_keychain_keys(env: Env) -> anyhow::Result<Vec<(String, String, String)>>
 #[cfg(feature = "keychain")]
 fn sign_keychain_key(name: &str, digest: &[u8], env: Env) -> anyhow::Result<Option<Vec<u8>>> {
     let label = keychain_label(name, env);
-    match legend_signer::KeychainSigner::load(&label) {
+    match legend_signer::KeychainSigner::load(&label, None) {
         Ok(signer) => Ok(Some(signer.sign(digest)?)),
         Err(_) => Ok(None),
     }

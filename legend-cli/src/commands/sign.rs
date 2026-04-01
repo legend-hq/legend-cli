@@ -44,7 +44,7 @@ pub fn load_signer_from_profile(profile: &Profile) -> anyhow::Result<Box<dyn Sig
                     .key_label
                     .as_ref()
                     .ok_or_else(|| anyhow::anyhow!("Profile missing key_label for Keychain"))?;
-                Ok(Box::new(KeychainSigner::load(label)?))
+                Ok(Box::new(KeychainSigner::load(label, Some(&profile.p256_public_key))?))
             }
             #[cfg(not(feature = "keychain"))]
             {

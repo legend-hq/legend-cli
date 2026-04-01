@@ -45,9 +45,13 @@ impl KeychainSigner {
         })
     }
 
-    /// Load an existing key from the keychain by its label.
-    pub fn load(label: &str) -> Result<Self> {
-        let private_key = find_key_by_label(label)?;
+    /// Load an existing key from the keychain by label and expected public key.
+    ///
+    /// When multiple keys share the same label (e.g. repeated account creation),
+    /// the expected public key (0x-prefixed compressed hex) disambiguates.
+    /// If `expected_pubkey` is None, returns the first key matching the label.
+    pub fn load(label: &str, expected_pubkey: Option<&str>) -> Result<Self> {
+        let private_key = find_key_by_label(label, expected_pubkey)?;
         let public_key_hex = extract_compressed_public_key(&private_key)?;
         Ok(Self {
             private_key,
@@ -122,7 +126,14 @@ fn generate_persistent_key(label: &str) -> Result<SecKey> {
     }
 }
 
-fn find_key_by_label(label: &str) -> Result<SecKey> {
+/// Find a keychain key by label, optionally filtering by expected compressed public key.
+///
+/// When `expected_pubkey` is Some, queries all keys matching the label and returns
+/// the one whose compressed public key matches. This handles the case where multiple
+/// keys share the same label from repeated account creation.
+///
+/// When `expected_pubkey` is None, returns the first key matching the label.
+fn find_key_by_label(label: &str, expected_pubkey: Option<&str>) -> Result<SecKey> {
     unsafe {
         let mut query = CFMutableDictionary::new();
         query.set(
@@ -142,16 +153,57 @@ fn find_key_by_label(label: &str) -> Result<SecKey> {
             CFString::wrap_under_get_rule(kSecAttrSynchronizableAny).as_CFTypeRef(),
         );
 
-        let mut result = std::ptr::null();
-        let status = SecItemCopyMatching(query.as_concrete_TypeRef(), &mut result);
+        match expected_pubkey {
+            None => {
+                // No disambiguation needed — return first match
+                let mut result = std::ptr::null();
+                let status = SecItemCopyMatching(query.as_concrete_TypeRef(), &mut result);
 
-        if status != 0 || result.is_null() {
-            return Err(SignerError::Keychain(format!(
-                "Key not found for label '{label}' (status: {status})"
-            )));
+                if status != 0 || result.is_null() {
+                    return Err(SignerError::Keychain(format!(
+                        "Key not found for label '{label}' (status: {status})"
+                    )));
+                }
+
+                Ok(SecKey::wrap_under_create_rule(result as _))
+            }
+            Some(expected) => {
+                // Fetch all matches and find the one with the right public key
+                query.set(
+                    CFString::wrap_under_get_rule(kSecMatchLimit).as_CFTypeRef(),
+                    CFString::wrap_under_get_rule(kSecMatchLimitAll).as_CFTypeRef(),
+                );
+
+                let mut result = std::ptr::null();
+                let status = SecItemCopyMatching(query.as_concrete_TypeRef(), &mut result);
+
+                if status != 0 || result.is_null() {
+                    return Err(SignerError::Keychain(format!(
+                        "Key not found for label '{label}' (status: {status})"
+                    )));
+                }
+
+                let array =
+                    core_foundation::array::CFArray::<SecKey>::wrap_under_create_rule(result as _);
+                let expected_lower = expected.to_ascii_lowercase();
+
+                for i in 0..array.len() {
+                    let key = array.get(i).unwrap();
+                    let key = SecKey::wrap_under_get_rule(key.as_CFTypeRef() as _);
+                    if let Ok(pubkey_hex) = extract_compressed_public_key(&key) {
+                        if pubkey_hex.to_ascii_lowercase() == expected_lower {
+                            return Ok(SecKey::wrap_under_get_rule(key.as_CFTypeRef() as _));
+                        }
+                    }
+                }
+
+                Err(SignerError::Keychain(format!(
+                    "No key matching public key {expected} found for label '{label}' \
+                     ({} key(s) with that label exist)",
+                    array.len()
+                )))
+            }
         }
-
-        Ok(SecKey::wrap_under_create_rule(result as _))
     }
 }
 
