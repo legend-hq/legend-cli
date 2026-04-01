@@ -41,11 +41,11 @@ let signature = signer.sign(b"message")?;
 {
     use legend_signer::KeychainSigner;
 
-    let signer = KeychainSigner::generate("com.legend.cli.prod.default")?;
+    let signer = KeychainSigner::generate("xyz.legend.cli.prod.mykey")?;
     println!("Public key: {}", signer.public_key_hex());
 
     // Keys sync via iCloud across all Apple devices
-    let signer = KeychainSigner::load("com.legend.cli.prod.default")?;
+    let signer = KeychainSigner::load("xyz.legend.cli.prod.mykey", Some("0x02ab..."))?;
     let signature = signer.sign(b"message")?;
 }
 ```

@@ -54,7 +54,7 @@ mod tests {
         eprintln!("Signature verified OK");
 
         // 4. Load the key by label
-        let signer2 = KeychainSigner::load(TEST_LABEL).unwrap();
+        let signer2 = KeychainSigner::load(TEST_LABEL, None).unwrap();
         assert_eq!(signer.public_key_hex(), signer2.public_key_hex());
         eprintln!("Loaded key matches");
 
