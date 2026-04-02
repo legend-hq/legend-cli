@@ -1,0 +1,53 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main, hayesgm/auto-release]
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag_exists: ${{ steps.check.outputs.exists }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get crate version
+        id: version
+        run: |
+          VERSION=$(grep '^version' legend-cli/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Crate version: $VERSION"
+
+      - name: Check if tag exists
+        id: check
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping"
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag $TAG does not exist, will create"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create and push tag
+        if: steps.check.outputs.exists == 'false'
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+  release:
+    needs: check-version
+    if: needs.check-version.outputs.tag_exists == 'false'
+    uses: ./.github/workflows/release.yml
+    with:
+      tag: v${{ needs.check-version.outputs.version }}
+    secrets: inherit
