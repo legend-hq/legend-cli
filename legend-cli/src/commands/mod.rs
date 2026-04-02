@@ -1,6 +1,8 @@
 pub mod accounts;
+pub mod dashboard;
 pub mod keys;
 pub mod login;
 pub mod mcp;
 pub mod plan;
+pub mod qr;
 pub mod sign;
