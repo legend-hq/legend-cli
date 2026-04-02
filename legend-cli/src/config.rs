@@ -17,6 +17,14 @@ impl Env {
         }
     }
 
+    pub fn dashboard_url(&self) -> &'static str {
+        match self {
+            Env::Dev => "http://localhost:3333",
+            Env::Stage => "https://dashboard.stage.legend.xyz",
+            Env::Prod => "https://dashboard.legend.xyz",
+        }
+    }
+
     pub fn dir_name(&self) -> &'static str {
         match self {
             Env::Dev => "dev",

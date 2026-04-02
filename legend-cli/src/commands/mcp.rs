@@ -121,12 +121,14 @@ fn tool_definitions() -> Vec<Value> {
             "Log in via Google SSO. Opens a browser for authentication and saves the token to the active profile.",
             json!({}),
             vec![],
+            read_annotation("Log In"),
         ),
         tool_def(
             "whoami",
             "Show current authentication info — which Prime Account is active. Only needed for debugging or verification; most tools work without calling this first.",
             json!({}),
             vec![],
+            read_annotation("Who Am I"),
         ),
         tool_def(
             "set_account",
@@ -135,12 +137,19 @@ fn tool_definitions() -> Vec<Value> {
                 "account_id": { "type": "string", "description": "Account ID (e.g. \"acc_xxx\")" }
             }),
             vec!["account_id"],
+            write_annotation("Set Active Account"),
         ),
         tool_def(
             "list_accounts",
-            "List all sub-accounts under the authenticated Prime Account. Use set_account with one of the returned account IDs to avoid passing account_id on every call.",
-            json!({}),
+            "List sub-accounts under the authenticated Prime Account. Returns accessible accounts by \
+             default (those whose signing key is available on this machine). Pass all=true to include \
+             inaccessible accounts. Each account includes an \"accessible\" field. Use set_account with \
+             one of the returned account IDs to avoid passing account_id on every call.",
+            json!({
+                "all": { "type": "boolean", "description": "Include inaccessible accounts (default: false)" }
+            }),
             vec![],
+            read_annotation("List Accounts"),
         ),
         tool_def(
             "get_account",
@@ -149,6 +158,7 @@ fn tool_definitions() -> Vec<Value> {
                 "account_id": { "type": "string", "description": "Account ID (optional if set_account was called)" }
             }),
             vec![],
+            read_annotation("Get Account"),
         ),
         tool_def(
             "create_account",
@@ -160,6 +170,7 @@ fn tool_definitions() -> Vec<Value> {
                 "ethereum_signer": { "type": "string", "description": "Ethereum address (for eoa accounts)" }
             }),
             vec![],
+            write_annotation("Create Account"),
         ),
         // --- Data & reference ---
         tool_def(
@@ -204,6 +215,7 @@ fn tool_definitions() -> Vec<Value> {
                 "filter": { "type": "string", "description": "Case-insensitive regex applied to keys. Only entries whose key matches are returned." }
             }),
             vec![],
+            read_annotation("Get Portfolio"),
         ),
         tool_def(
             "get_activities",
@@ -213,18 +225,21 @@ fn tool_definitions() -> Vec<Value> {
                 "activity_id": { "type": "string", "description": "Fetch a single activity by external ID (e.g. \"act_xxx\")." }
             }),
             vec![],
+            read_annotation("Get Activities"),
         ),
         tool_def(
             "list_networks",
             "List all supported blockchain networks.",
             json!({}),
             vec![],
+            read_annotation("List Networks"),
         ),
         tool_def(
             "list_assets",
             "List all supported assets with decimals and network availability.",
             json!({}),
             vec![],
+            read_annotation("List Assets"),
         ),
         tool_def(
             "list_markets",
@@ -243,6 +258,7 @@ fn tool_definitions() -> Vec<Value> {
             ),
             json!({}),
             vec![],
+            read_annotation("List Markets"),
         ),
         // --- Action tools ---
         tool_def(
@@ -269,6 +285,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["amount", "asset", "network", "protocol"],
+            write_annotation("Earn (Deposit)"),
         ),
         tool_def(
             "withdraw",
@@ -292,6 +309,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["amount", "asset", "network", "protocol"],
+            write_annotation("Withdraw"),
         ),
         tool_def(
             "swap",
@@ -319,6 +337,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["sell_asset", "buy_asset", "network"],
+            write_annotation("Swap"),
         ),
         tool_def(
             "transfer",
@@ -339,6 +358,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["amount", "asset", "network", "recipient"],
+            write_annotation("Transfer"),
         ),
         tool_def(
             "borrow",
@@ -364,6 +384,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["amount", "asset", "collateral_amount", "collateral_asset", "network", "protocol"],
+            write_annotation("Borrow"),
         ),
         tool_def(
             "repay",
@@ -388,6 +409,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["amount", "asset", "collateral_amount", "collateral_asset", "network", "protocol"],
+            write_annotation("Repay"),
         ),
         tool_def(
             "migrate",
@@ -417,6 +439,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["amount", "asset", "from_protocol", "to_protocol", "network"],
+            write_annotation("Migrate Position"),
         ),
         tool_def(
             "swap_and_supply",
@@ -444,6 +467,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["sell_asset", "sell_amount", "buy_asset", "protocol", "network"],
+            write_annotation("Swap and Supply"),
         ),
         // --- Rewards ---
         tool_def(
@@ -463,6 +487,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["asset"],
+            write_annotation("Claim Rewards"),
         ),
         tool_def(
             "reinvest_rewards",
@@ -492,6 +517,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["asset", "protocol", "network", "reward_assets"],
+            write_annotation("Reinvest Rewards"),
         ),
         // --- Leverage tools ---
         tool_def(
@@ -529,6 +555,7 @@ fn tool_definitions() -> Vec<Value> {
             }),
             vec!["exposure_asset", "backing_asset", "market_id", "is_increase", "exposure_amount",
                  "max_swap_backing_amount", "max_provided_backing_amount", "pool_fee", "network"],
+            write_annotation("Loop Long"),
         ),
         tool_def(
             "unloop_long",
@@ -563,6 +590,7 @@ fn tool_definitions() -> Vec<Value> {
             }),
             vec!["exposure_asset", "backing_asset", "market_id", "exposure_amount",
                  "backing_amount_to_exit", "min_swap_backing_amount", "pool_fee", "network"],
+            write_annotation("Unloop Long"),
         ),
         tool_def(
             "add_backing",
@@ -591,6 +619,7 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["exposure_asset", "backing_asset", "market_id", "amount", "is_short", "network"],
+            write_annotation("Add Backing"),
         ),
         tool_def(
             "withdraw_backing",
@@ -619,6 +648,18 @@ fn tool_definitions() -> Vec<Value> {
                 "wait": { "type": "boolean", "description": "Wait for terminal status (default: true)" }
             }),
             vec!["exposure_asset", "backing_asset", "market_id", "amount", "is_short", "network"],
+            write_annotation("Withdraw Backing"),
+        ),
+        // --- QR code ---
+        tool_def(
+            "get_address_qr",
+            "Get a QR code for an account's deposit address on a specific network. Returns the QR art string, the address, account ID, and network.",
+            json!({
+                "account_id": { "type": "string", "description": "Account ID (e.g. \"acc_xxx\")" },
+                "network": { "type": "string", "description": "Network: \"ethereum\", \"solana\", or \"legend\"" }
+            }),
+            vec!["account_id", "network"],
+            read_annotation("Get Address QR"),
         ),
         // --- Low-level (for execute=false flow) ---
         tool_def(
@@ -630,11 +671,18 @@ fn tool_definitions() -> Vec<Value> {
                 "signature": { "type": "string", "description": "0x-prefixed EIP-712 signature over the plan digest" }
             }),
             vec!["plan_id", "signature"],
+            write_annotation("Execute Plan"),
         ),
     ]
 }
 
-fn tool_def(name: &str, description: &str, properties: Value, required: Vec<&str>) -> Value {
+fn tool_def(
+    name: &str,
+    description: &str,
+    properties: Value,
+    required: Vec<&str>,
+    annotations: Value,
+) -> Value {
     json!({
         "name": name,
         "description": description,
@@ -643,7 +691,28 @@ fn tool_def(name: &str, description: &str, properties: Value, required: Vec<&str
             "properties": properties,
             "required": required,
             "additionalProperties": false
-        }
+        },
+        "annotations": annotations
+    })
+}
+
+fn read_annotation(title: &str) -> Value {
+    json!({
+        "title": title,
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+    })
+}
+
+fn write_annotation(title: &str) -> Value {
+    json!({
+        "title": title,
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": true
     })
 }
 
@@ -693,15 +762,22 @@ async fn handle_tool_call(
 
         "list_accounts" => {
             let client = make_client(session)?;
+            let all = args.get("all").and_then(|v| v.as_bool()).unwrap_or(false);
             let list = client.accounts.list().await?;
-            Ok(serde_json::to_string(&list)?)
+            let local_keys = super::keys::local_pubkeys(session.env);
+            let accounts_json = annotate_accounts(&list.accounts, &local_keys, all);
+            Ok(serde_json::to_string(&json!({ "accounts": accounts_json }))?)
         }
 
         "get_account" => {
             let client = make_client(session)?;
             let id = resolve_account_id(&args, session)?;
             let account = client.accounts.get(&id).await?;
-            Ok(serde_json::to_string(&account)?)
+            let local_keys = super::keys::local_pubkeys(session.env);
+            let accessible = super::accounts::check_accessible(&account, &local_keys);
+            let mut v = serde_json::to_value(&account)?;
+            v["accessible"] = json!(accessible);
+            Ok(serde_json::to_string(&v)?)
         }
 
         "create_account" => {
@@ -746,7 +822,11 @@ async fn handle_tool_call(
                 // Auto-set as active account
                 session.active_account_id = Some(account.account_id.clone());
 
-                Ok(serde_json::to_string(&account)?)
+                let local_keys = super::keys::local_pubkeys(session.env);
+                let accessible = super::accounts::check_accessible(&account, &local_keys);
+                let mut v = serde_json::to_value(&account)?;
+                v["accessible"] = json!(accessible);
+                Ok(serde_json::to_string(&v)?)
             } else {
                 let client = make_client(session)?;
                 let signer_type = args
@@ -764,7 +844,11 @@ async fn handle_tool_call(
                         ..Default::default()
                     })
                     .await?;
-                Ok(serde_json::to_string(&account)?)
+                let local_keys = super::keys::local_pubkeys(session.env);
+                let accessible = super::accounts::check_accessible(&account, &local_keys);
+                let mut v = serde_json::to_value(&account)?;
+                v["accessible"] = json!(accessible);
+                Ok(serde_json::to_string(&v)?)
             }
         }
 
@@ -1170,6 +1254,22 @@ async fn handle_tool_call(
             Ok(serde_json::to_string(&result)?)
         }
 
+        "get_address_qr" => {
+            let client = make_client(session)?;
+            let id = str_arg(&args, "account_id")?;
+            let network = str_arg(&args, "network")?;
+            let account = client.accounts.get(&id).await?;
+            let address = super::qr::address_for_network(&account, &network)?;
+            let qr_art = super::qr::generate_qr_string(&address)?;
+            Ok(json!({
+                "qr": qr_art,
+                "address": address,
+                "account_id": id,
+                "network": network,
+            })
+            .to_string())
+        }
+
         _ => anyhow::bail!("Unknown tool: {name}"),
     }
 }
@@ -1250,6 +1350,13 @@ async fn sign_with_profile(env: Env, profile: &str, digest: &str) -> anyhow::Res
     let p = config::load_profile(env, profile).ok_or_else(|| {
         anyhow::anyhow!("No profile found. Use the login or create_account tool first.")
     })?;
+    let local_keys = super::keys::local_pubkeys(env);
+    if !local_keys.contains(&p.p256_public_key.to_ascii_lowercase()) {
+        anyhow::bail!(
+            "Signing key for this profile is not accessible on this machine. \
+            Use list_accounts to see accessible accounts."
+        );
+    }
     let signer = load_signer_from_profile(&p)?;
     let turnkey = TurnkeyClient::new(TurnkeyConfig {
         signer,
@@ -1413,4 +1520,71 @@ fn jsonrpc_result(id: Option<Value>, result: Value) -> Value {
 
 fn jsonrpc_error(id: Option<Value>, code: i64, message: &str) -> Value {
     json!({ "jsonrpc": "2.0", "id": id, "error": { "code": code, "message": message } })
+}
+
+/// Annotate a slice of accounts with `accessible: bool`, optionally filtering out inaccessible ones.
+fn annotate_accounts(
+    accounts: &[Account],
+    local_keys: &std::collections::HashSet<String>,
+    all: bool,
+) -> Vec<Value> {
+    accounts
+        .iter()
+        .filter_map(|a| {
+            let accessible = super::accounts::check_accessible(a, local_keys);
+            if !all && !accessible {
+                return None;
+            }
+            let mut v = serde_json::to_value(a).unwrap();
+            v["accessible"] = json!(accessible);
+            Some(v)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use legend_client::types::Account;
+
+    fn make_account(id: &str, p256_public_key: Option<&str>, key_storage: Option<&str>) -> Account {
+        Account {
+            account_id: id.to_string(),
+            signer_type: Some("turnkey_p256".to_string()),
+            ethereum_signer_address: Some("0xabc".to_string()),
+            p256_public_key: p256_public_key.map(|s| s.to_string()),
+            legend_wallet_address: None,
+            solana_wallet_address: None,
+            turnkey_sub_org_id: None,
+            key_storage: key_storage.map(|s| s.to_string()),
+            created_at: "2026-01-01".to_string(),
+        }
+    }
+
+    fn local_keys(keys: &[&str]) -> std::collections::HashSet<String> {
+        keys.iter().map(|k| k.to_ascii_lowercase()).collect()
+    }
+
+    #[test]
+    fn annotate_accounts_filters_and_annotates() {
+        let accounts = vec![
+            make_account("acc_1", Some("0x02aabb"), Some("file")), // accessible
+            make_account("acc_2", Some("0x02ccdd"), Some("file")), // inaccessible
+        ];
+        let keys = local_keys(&["0x02aabb"]);
+
+        // all=false: only accessible accounts returned, each with accessible field
+        let filtered = super::annotate_accounts(&accounts, &keys, false);
+        assert_eq!(filtered.len(), 1);
+        assert_eq!(filtered[0]["account_id"], json!("acc_1"));
+        assert_eq!(filtered[0]["accessible"], json!(true));
+
+        // all=true: both returned, correctly annotated
+        let all = super::annotate_accounts(&accounts, &keys, true);
+        assert_eq!(all.len(), 2);
+        let acc1 = all.iter().find(|v| v["account_id"] == json!("acc_1")).unwrap();
+        let acc2 = all.iter().find(|v| v["account_id"] == json!("acc_2")).unwrap();
+        assert_eq!(acc1["accessible"], json!(true));
+        assert_eq!(acc2["accessible"], json!(false));
+    }
 }

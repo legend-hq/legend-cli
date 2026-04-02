@@ -110,12 +110,23 @@ enum Commands {
     Assets,
     /// Show current auth info
     Whoami,
+    /// Open the dashboard in the default browser, authenticated with the active profile
+    Dashboard,
     /// Print setup and usage guide (for AI agents and humans)
     Skill,
     /// Manage configuration
     Config {
         #[command(subcommand)]
         action: ConfigAction,
+    },
+    /// Show a QR code for an account's deposit address
+    Qr {
+        /// Account ID (e.g. "acc_xxx")
+        #[arg(long)]
+        account_id: String,
+        /// Network: ethereum, solana, or legend
+        #[arg(long)]
+        network: String,
     },
 }
 
@@ -1073,6 +1084,8 @@ async fn main() {
             .await
         }
 
+        Commands::Dashboard => commands::dashboard::open(env, &cli.profile),
+
         Commands::Skill => {
             print!("{}", include_str!("skill.txt"));
             Ok(())
@@ -1081,6 +1094,37 @@ async fn main() {
         Commands::Config { action } => match action {
             ConfigAction::Set { key, value } => run_config_set(key, value, env, &cli.profile),
         },
+
+        Commands::Qr {
+            account_id,
+            network,
+        } => {
+            async {
+                let client = make_client(&cli.key, env, &cli.profile, &base, cli.verbose)?;
+                let account = client.accounts.get(account_id).await?;
+                let address = commands::qr::address_for_network(&account, network)?;
+                let qr_art = commands::qr::generate_qr_string(&address)?;
+                match &mode {
+                    OutputMode::Json => {
+                        let out = serde_json::json!({
+                            "qr": qr_art,
+                            "address": address,
+                            "account_id": account_id,
+                            "network": network,
+                        });
+                        println!("{}", serde_json::to_string_pretty(&out)?);
+                    }
+                    OutputMode::Quiet => println!("{address}"),
+                    OutputMode::Table => {
+                        println!("{qr_art}");
+                        println!();
+                        println!("{address}");
+                    }
+                }
+                Ok(())
+            }
+            .await
+        }
     };
 
     if let Err(e) = result {

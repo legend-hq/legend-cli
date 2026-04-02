@@ -42,9 +42,16 @@ fn make_file_signer() -> (FileSigner, tempfile::TempDir) {
     (signer, dir)
 }
 
-/// Call the Elixir funding server to fund a quark wallet and checkpoint it.
-/// By the time this returns 200, the folio reflects the new balance.
-async fn fund(config: &TestConfig, signer_address: &str, asset: &str, amount: u64, network: &str) {
+/// Call the Elixir funding server to fund a quark wallet.
+/// Sets the balance on anvil and writes it to the FolioStore so the planner can see it.
+async fn fund(
+    config: &TestConfig,
+    account_id: &str,
+    signer_address: &str,
+    asset: &str,
+    amount: u64,
+    network: &str,
+) {
     let funding_url = config
         .funding_url
         .as_ref()
@@ -57,7 +64,8 @@ async fn fund(config: &TestConfig, signer_address: &str, asset: &str, amount: u6
             "signer_address": signer_address,
             "asset": asset,
             "amount": amount,
-            "network": network
+            "network": network,
+            "account_id": account_id
         }))
         .send()
         .await
@@ -184,8 +192,8 @@ async fn test_swap_full_flow() {
     let signer_address = account.ethereum_signer_address.as_ref().unwrap();
     let sub_org_id = account.turnkey_sub_org_id.as_ref().unwrap();
 
-    // 2. Fund the quark wallet (Elixir handles set_balance + checkpoint)
-    fund(&config, signer_address, "usdc", 10_000_000, "base").await;
+    // 2. Fund the quark wallet
+    fund(&config, &account.account_id, signer_address, "usdc", 10_000_000, "base").await;
 
     // 3. Create swap plan
     let plan = client
@@ -259,7 +267,7 @@ async fn test_earn_full_flow() {
     let sub_org_id = account.turnkey_sub_org_id.as_ref().unwrap();
 
     // 2. Fund
-    fund(&config, signer_address, "usdc", 10_000_000, "base").await;
+    fund(&config, &account.account_id, signer_address, "usdc", 10_000_000, "base").await;
 
     // 3. Create earn plan
     let plan = client
